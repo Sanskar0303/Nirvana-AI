@@ -1,4 +1,4 @@
-##Nirvana-AI 🎤🤖
+# Nirvana-AI 🎤🤖
 
 A real-time, conversational AI assistant that lets you talk to a Large Language Model (LLM) with your voice and get a spoken response. This is a full-stack, voice-enabled web application built with Python and JavaScript.
 
@@ -34,6 +34,7 @@ The project is organized to keep the client and server components separate and e
     ├── llm_service.py  # Handles LLM interactions
     ├── stt_service.py  # Handles Speech-to-Text
     └── tts_service.py  # Handles Text-to-Speech
+    
 ⚙️ How to Run the Code
 To get the project up and running on your local machine, follow these steps:
 
