@@ -21,19 +21,19 @@ Sleek UI: A clean, modern user interface with a "glassmorphism" design.
 The project is organized to keep the client and server components separate and easy to navigate.
 
 .
-├── .env                # Environment variables (API keys)
-├── README.md           # This file!
-├── requirements.txt    # Python dependencies
-├── app.py              # The Flask server application
-├── static/             # Directory for static assets
-│   └── image.jpeg      # The UI background image
-├── templates/          # HTML templates for Flask
-│   └── index.html      # The main user interface
-└── services/           # Backend services
-    ├── __init__.py     # Makes the directory a Python package
-    ├── llm_service.py  # Handles LLM interactions
-    ├── stt_service.py  # Handles Speech-to-Text
-    └── tts_service.py  # Handles Text-to-Speech
+├── .env                  # Environment variables (API keys)
+├── README.md             # This file!
+├── requirements.txt      # Python dependencies
+├── app.py                # The Flask server application
+├── static/               # Directory for static assets
+│   └── image.jpeg        # The UI background image
+├── templates/            # HTML templates for Flask
+│   └── index.html        # The main user interface
+└── services/             # Backend services
+├── init.py       # Makes the directory a Python package
+├── gemini_service.py # Handles LLM interactions
+├── assemblyai_service.py # Handles Speech-to-Text
+└── murf_service.py       # Handles Text-to-Speech
     
 ⚙️ How to Run the Code
 To get the project up and running on your local machine, follow these steps:
