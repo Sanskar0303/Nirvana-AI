@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Voice Agent — Dhvani</title>
+<style>
+    /* ... (Your existing CSS code goes here) ... */
+    body {
+        margin: 0;
+        font-family: 'Segoe UI', sans-serif;
+        background: linear-gradient(rgba(30, 30, 30, 0.5), rgba(30, 30, 30, 0.5)),
+                    url('{{ url_for("static", filename="image.jpeg") }}') no-repeat center center fixed;
+        background-size: cover;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .glass-container {
+        background: transparent;
+        border-radius: 20px;
+        padding: 0;
+        width: min(480px, 92%);
+        text-align: center;
+    }
+    .card {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(14px);
+        border-radius: 24px;
+        padding: 24px 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    h1 { color: #fff; font-size: 1.6rem; margin-bottom: 8px; }
+    p { color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; margin-bottom: 20px; }
+    
+    /* Chat History Styles */
+    .chat-history {
+        max-height: 240px;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        padding: 12px;
+        margin: 15px 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        text-align: left;
+    }
+    .chat-history::-webkit-scrollbar { width: 8px; }
+    .chat-history::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
+    .chat-history::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+    .chat-history::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.3); }
+
+    .chat-message {
+        margin: 12px 0;
+        padding: 10px;
+        border-radius: 10px;
+        font-size: 0.9rem;
+    }
+    .chat-user {
+        background: rgba(74, 202, 239, 0.15);
+        border-left: 3px solid #4cafef;
+        color: #aee8ff;
+    }
+    .chat-llm {
+        background: rgba(16, 185, 129, 0.15);
+        border-left: 3px solid #10b981;
+        color: #86efac;
+    }
+    .chat-timestamp {
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.4);
+        margin-top: 6px;
+    }
+
+    /* Session Controls */
+    .session-controls {
+        margin: 15px 0;
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .session-select {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        color: #fff;
+        padding: 8px 12px;
+        margin: 4px;
+        font-size: 0.85rem;
+    }
+    .session-select option {
+        background: #1a1a1a;
+        color: #fff;
+    }
+    .session-controls button {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.25s ease;
+        margin: 4px;
+    }
+    .session-controls button:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px) scale(1.03);
+    }
+    
+    /* Main Control Section */
+    .main-controls {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    /* Combined Record Button */
+    #manual-record-btn {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        border: 2px solid #fff;
+        color: #fff;
+        font-size: 1.8rem;
+        transition: all 0.3s ease-in-out;
+        box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+    }
+    #manual-record-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 24px rgba(239, 68, 68, 0.6);
+    }
+    #manual-record-btn.recording {
+        background: linear-gradient(135deg, #10b981, #059669);
+        box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+        animation: pulse-green 1.5s infinite ease-out;
+    }
+    #manual-record-btn.thinking {
+        background: linear-gradient(135deg, #4cafef, #00e0ff);
+        box-shadow: 0 4px 16px rgba(76, 175, 239, 0.4);
+        animation: rotate-loader 2s infinite linear;
+        border-radius: 50%;
+    }
+    #manual-record-btn span {
+        display: block;
+        transition: opacity 0.3s ease;
+    }
+    #manual-record-btn.thinking span {
+        opacity: 0;
+    }
+    @keyframes pulse-green {
+        0% { transform: scale(1); box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4); }
+        50% { transform: scale(1.05); box-shadow: 0 6px 24px rgba(16, 185, 129, 0.6); }
+        100% { transform: scale(1); box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4); }
+    }
+    @keyframes rotate-loader {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .status-text {
+        font-size: 0.9rem;
+        color: #aee8ff;
+        margin: 10px 0;
+        min-height: 20px; /* Prevent layout shift */
+    }
+    .volume-bar-container {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+        height: 6px;
+        margin-top: 8px;
+    }
+    .volume-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981, #34d399);
+        width: 0%;
+        transition: width 0.1s ease;
+    }
+    #llm-audio-response {
+        display: none;
+        width: 100%;
+        margin-top: 15px;
+    }
+    #current-transcript, #current-reply {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.85);
+        background: rgba(0, 0, 0, 0.1);
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-top: 10px;
+        text-align: left;
+    }
+</style>
+</head>
+<body>
+
+<div class="glass-container">
+    <div class="card">
+      <h1>AI Chat Agent</h1>
+      <p>Start a new conversation or continue an old one!</p>
+
+      <div class="session-controls">
+          <select id="session-select" class="session-select">
+              <option value="new">🆕 New Session</option>
+          </select>
+          <button onclick="loadSession()">📂 Load</button>
+          <button onclick="deleteSession()">🗑️ Delete</button>
+      </div>
+
+      <div id="chat-history" class="chat-history">
+          <div style="text-align:center; color: rgba(255,255,255,0.6); font-size: 0.75rem;">No messages yet</div>
+      </div>
+
+      <div class="main-controls">
+          <button id="manual-record-btn">
+              <span id="record-icon">🎙️</span>
+          </button>
+          <div id="status-text" class="status-text">Click to start recording</div>
+          <div class="volume-bar-container">
+              <div id="volume-fill" class="volume-fill"></div>
+          </div>
+          
+          <div id="current-transcript" style="display:none;"></div>
+          <div id="current-reply" style="display:none;"></div>
+      </div>
+
+      <audio id="llm-audio-response" controls></audio>
+    </div>
+</div>
+
+<script>
+// Final JavaScript for Day 14
+document.addEventListener('DOMContentLoaded', () => {
+    // ---- UI Elements ----
+    const sessionSelect = document.getElementById('session-select');
+    const chatHistoryEl = document.getElementById('chat-history');
+    const manualRecordBtn = document.getElementById('manual-record-btn');
+    const recordIcon = document.getElementById('record-icon');
+    const statusTextEl = document.getElementById('status-text');
+    const volumeFillEl = document.getElementById('volume-fill');
+    const currentTranscriptEl = document.getElementById('current-transcript');
+    const currentReplyEl = document.getElementById('current-reply');
+    const llmAudioResponseEl = document.getElementById('llm-audio-response');
+
+    // ---- State Variables ----
+    let currentSessionId = 'new';
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let audioContext = null;
+    let source = null;
+    let analyser = null;
+    let dataArray = null;
+
+    // ---- Audio Utilities ----
+    function getSupportedAudioMime() {
+        const supported = [
+            'audio/webm;codecs=opus', 'audio/webm',
+            'audio/mp4', 'audio/mpeg'
+        ];
+        for (const mime of supported) {
+            if (MediaRecorder.isTypeSupported(mime)) {
+                return mime;
+            }
+        }
+        return null;
+    }
+
+    function mimeToExt(mime) {
+        if (mime.includes('webm')) return 'webm';
+        if (mime.includes('mp4')) return 'mp4';
+        if (mime.includes('mpeg')) return 'mp3';
+        return 'unknown';
+    }
+
+    // ---- Chat History Functions ----
+    function updateChatHistoryUI(history) {
+        chatHistoryEl.innerHTML = ''; // Clear existing history
+        if (history && history.messages && history.messages.length > 0) {
+            history.messages.forEach(message => {
+                const userMessageEl = document.createElement('div');
+                userMessageEl.className = 'chat-message chat-user';
+                userMessageEl.innerHTML = `<span style="font-weight: bold;">You:</span> ${message.user_message}`;
+                chatHistoryEl.appendChild(userMessageEl);
+
+                const llmMessageEl = document.createElement('div');
+                llmMessageEl.className = 'chat-message chat-llm';
+                llmMessageEl.innerHTML = `<span style="font-weight: bold;">AI:</span> ${message.llm_reply}`;
+                chatHistoryEl.appendChild(llmMessageEl);
+            });
+        } else {
+            chatHistoryEl.innerHTML = '<div style="text-align:center; color: rgba(255,255,255,0.6); font-size: 0.75rem;">No messages yet</div>';
+        }
+        chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight; // Scroll to bottom
+    }
+
+    async function loadSessions() {
+        try {
+            const response = await fetch('/api/chat/sessions');
+            const data = await response.json();
+            sessionSelect.innerHTML = '<option value="new">🆕 New Session</option>'; // Always have a "new" option
+            if (data.sessions && data.sessions.length > 0) {
+                data.sessions.forEach(session => {
+                    const option = document.createElement('option');
+                    option.value = session.session_id;
+                    const date = new Date(session.created_at);
+                    option.textContent = `💬 ${date.toLocaleDateString()} - ${date.toLocaleTimeString()} (${session.message_count} msgs)`;
+                    sessionSelect.appendChild(option);
+                });
+            }
+            // Set the current session ID based on the select element
+            currentSessionId = sessionSelect.value;
+        } catch (error) {
+            console.error('Failed to load sessions:', error);
+        }
+    }
+
+    async function loadSession() {
+        const sessionId = sessionSelect.value;
+        if (sessionId === 'new') {
+            currentSessionId = 'new';
+            updateChatHistoryUI(null);
+            console.log('Starting a new session.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/chat/history/${sessionId}`);
+            const history = await response.json();
+            if (response.ok) {
+                currentSessionId = sessionId;
+                updateChatHistoryUI(history);
+                console.log(`Loaded session: ${sessionId}`);
+            } else {
+                console.error('Failed to load session:', history.error);
+                alert('Failed to load session: ' + history.error);
+            }
+        } catch (error) {
+            console.error('Failed to load session:', error);
+            alert('An error occurred while loading the session.');
+        }
+    }
+
+    async function deleteSession() {
+        const sessionId = sessionSelect.value;
+        if (sessionId === 'new' || !confirm('Are you sure you want to delete this session?')) {
+            return;
+        }
+        try {
+            const response = await fetch(`/api/chat/delete/${sessionId}`, { method: 'DELETE' });
+            if (response.ok) {
+                alert('Session deleted successfully.');
+                loadSessions(); // Reload sessions to update the dropdown
+                updateChatHistoryUI(null); // Clear the UI
+            } else {
+                const data = await response.json();
+                alert('Failed to delete session: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Failed to delete session:', error);
+            alert('An error occurred while deleting the session.');
+        }
+    }
+
+    // ---- Core Recording and Processing Logic ----
+    async function startManualRecord() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mimeType = getSupportedAudioMime();
+            if (!mimeType) {
+                alert('Your browser does not support the required audio codecs.');
+                return;
+            }
+
+            mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: mimeType });
+                await processAudio(audioBlob);
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            // Start audio context for volume analysis
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            source = audioContext.createMediaStreamSource(stream);
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            source.connect(analyser);
+
+            updateVolume();
+            mediaRecorder.start();
+
+            // UI changes
+            manualRecordBtn.classList.remove('thinking');
+            manualRecordBtn.classList.add('recording');
+            recordIcon.textContent = '⏹️';
+            statusTextEl.textContent = 'Recording...';
+        } catch (error) {
+            console.error('Error accessing microphone:', error);
+            statusTextEl.textContent = 'Mic access denied!';
+        }
+    }
+
+    function stopManualRecord() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            // Stop volume analysis
+            if (source) {
+                source.disconnect();
+            }
+            // UI changes
+            manualRecordBtn.classList.remove('recording');
+            manualRecordBtn.classList.add('thinking');
+            recordIcon.textContent = '';
+            statusTextEl.textContent = 'Processing...';
+            volumeFillEl.style.width = '0%';
+        }
+    }
+
+    function updateVolume() {
+        analyser.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
+        const volume = Math.min(100, average * 1.5); // Scale for visual effect
+        volumeFillEl.style.width = `${volume}%`;
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            requestAnimationFrame(updateVolume);
+        }
+    }
+
+    async function processAudio(audioBlob) {
+        const formData = new FormData();
+        const ext = mimeToExt(audioBlob.type);
+        formData.append('audio', audioBlob, `recording.${ext}`);
+        formData.append('session_id', currentSessionId);
+
+        try {
+            const response = await fetch('/llm/query', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            console.log('API Response:', result);
+
+            // Update UI with results
+            if (response.ok) {
+                currentTranscriptEl.style.display = 'block';
+                currentTranscriptEl.innerHTML = `<strong>You:</strong> ${result.transcript}`;
+                
+                currentReplyEl.style.display = 'block';
+                currentReplyEl.innerHTML = `<strong>AI:</strong> ${result.llm_reply}`;
+                
+                if (result.audio_url) {
+                    llmAudioResponseEl.src = result.audio_url;
+                    llmAudioResponseEl.style.display = 'block';
+                    llmAudioResponseEl.play();
+                }
+
+                // If a new session was started, update the session ID
+                if (currentSessionId === 'new') {
+                    currentSessionId = result.session_id;
+                    await loadSessions();
+                    sessionSelect.value = currentSessionId;
+                }
+                
+                // Add the new messages to the chat history
+                const userMessageEl = document.createElement('div');
+                userMessageEl.className = 'chat-message chat-user';
+                userMessageEl.innerHTML = `<span style="font-weight: bold;">You:</span> ${result.transcript}`;
+                chatHistoryEl.appendChild(userMessageEl);
+
+                const llmMessageEl = document.createElement('div');
+                llmMessageEl.className = 'chat-message chat-llm';
+                llmMessageEl.innerHTML = `<span style="font-weight: bold;">AI:</span> ${result.llm_reply}`;
+                chatHistoryEl.appendChild(llmMessageEl);
+                chatHistoryEl.scrollTop = chatHistoryEl.scrollHeight;
+
+            } else {
+                statusTextEl.textContent = `Error: ${result.error}`;
+                console.error('API Error:', result.error);
+            }
+        } catch (error) {
+            console.error('Processing error:', error);
+            statusTextEl.textContent = 'Processing failed.';
+        } finally {
+            // Reset UI state
+            manualRecordBtn.classList.remove('thinking');
+            recordIcon.textContent = '🎙️';
+            statusTextEl.textContent = 'Click to start recording';
+            llmAudioResponseEl.style.display = 'none';
+        }
+    }
+
+    // ---- Event Listeners ----
+    manualRecordBtn.onclick = () => {
+        if (!manualRecordBtn.classList.contains('recording') && !manualRecordBtn.classList.contains('thinking')) {
+            startManualRecord();
+        } else {
+            stopManualRecord();
+        }
+    };
+
+    sessionSelect.addEventListener('change', loadSession);
+
+    // Initial load
+    loadSessions();
+});
+</script>
+
+</body>
+</html>
