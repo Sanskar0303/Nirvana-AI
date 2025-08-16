@@ -2,22 +2,22 @@
 
 A real-time, conversational AI assistant that lets you talk to a Large Language Model (LLM) with your voice and get a spoken response. This is a full-stack, voice-enabled web application built with Python and JavaScript.
 
-🚀 Key Features
+⚫ Key Features:
 This application serves as a complete example of a modern voice interface, providing a seamless, hands-free conversational experience.
 
-Real-time Voice Interaction: Engage in a fluid conversation with an AI.
+• Real-time Voice Interaction: Engage in a fluid conversation with an AI.
 
-Intelligent Session Management: Start new conversations or continue old ones, with the ability to save and delete chat history.
+• Intelligent Session Management: Start new conversations or continue old ones, with the ability to save and delete chat history.
 
-Auto-Recording (VAD): The system can automatically start and stop recording based on your voice, making the interaction feel more natural and hands-free.
+• Auto-Recording (VAD): The system can automatically start and stop recording based on your voice, making the interaction feel more natural and hands-free.
 
-Fast Transcription: In manual mode, it uses the browser's built-in SpeechRecognition API for near-instant transcription.
+•Fast Transcription: In manual mode, it uses the browser's built-in SpeechRecognition API for near-instant transcription.
 
-Voice Responses: The AI's text replies are converted into high-quality, synthesized speech and played back automatically.
+• Voice Responses: The AI's text replies are converted into high-quality, synthesized speech and played back automatically.
 
-Sleek UI: A clean, modern user interface with a "glassmorphism" design.
+• Sleek UI: A clean, modern user interface with a "glassmorphism" design.
 
-📁 Project Structure
+⚫ Project Structure:
 The project is organized to keep the client and server components separate and easy to navigate.
 
 .
@@ -35,7 +35,7 @@ The project is organized to keep the client and server components separate and e
 ├── assemblyai_service.py # Handles Speech-to-Text
 └── murf_service.py       # Handles Text-to-Speech
     
-⚙️ How to Run the Code
+⚫ How to Run the Code
 To get the project up and running on your local machine, follow these steps:
 
 1. Clone the Repository
