@@ -34,7 +34,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # ---------------- FastAPI App ----------------
 app = FastAPI()
 
-BASE_DIR = PathLib(_file_).resolve().parent
+BASE_DIR = PathLib(__file__).resolve().parent
 
 # Serve static files (CSS, JS, images, etc.)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -372,4 +372,5 @@ async def websocket_audio_streaming(websocket: WebSocket):
 
 if __name__ == "_main_":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
