@@ -309,7 +309,7 @@ async def websocket_audio_streaming(websocket: WebSocket):
 
     client = StreamingClient(StreamingClientOptions(api_key=config.ASSEMBLYAI_API_KEY))
 
-    def on_turn(self: Type[StreamingClient], event: TurnEvent):
+    def on_turn(self: type[StreamingClient], event: TurnEvent):
         nonlocal last_processed_transcript, llm_task
         transcript_text = event.transcript.strip()
         
@@ -374,3 +374,4 @@ if __name__ == "_main_":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
