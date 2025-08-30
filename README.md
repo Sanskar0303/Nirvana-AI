@@ -1,5 +1,5 @@
 # Nirvana AI 🎙️  
-**30 Days of AI Voice Agents | Day 29 - Final Documentation**
+**30 Days of AI Voice Agents**
 
 ---
 
