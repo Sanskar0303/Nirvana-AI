@@ -11,17 +11,56 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentAiMessageContentElement = null;
     let audioChunkIndex = 0;
     
-    // NEW: Keep a reference to the current audio source to stop it gracefully
-    let currentAudioSource = null; 
+    let currentAudioSource = null;
 
+    // --- API Key Modal Elements ---
+    const settingsBtn = document.getElementById("settingsBtn");
+    const settingsModal = document.getElementById("settingsModal");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const saveKeysBtn = document.getElementById("saveKeysBtn");
+    const assemblyaiKeyInput = document.getElementById("assemblyaiKey");
+    const geminiKeyInput = document.getElementById("geminiKey");
+    const murfKeyInput = document.getElementById("murfKey");
+    const tavilyKeyInput = document.getElementById("tavilyKey");
+    
     const recordBtn = document.getElementById("recordBtn");
     const statusDisplay = document.getElementById("statusDisplay");
     const chatDisplay = document.getElementById("chatDisplay");
     const chatContainer = document.getElementById("chatContainer");
     const clearBtnContainer = document.getElementById("clearBtnContainer");
     const clearBtn = document.getElementById("clearBtn");
+    
+    // --- API Key Modal Logic ---
+    const openSettingsModal = () => {
+        assemblyaiKeyInput.value = localStorage.getItem('assemblyai_api_key') || '';
+        geminiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
+        murfKeyInput.value = localStorage.getItem('murf_api_key') || '';
+        tavilyKeyInput.value = localStorage.getItem('tavily_api_key') || '';
+        settingsModal.classList.remove('hidden');
+    };
 
-    // MODIFIED: This function now stops the specific sound source instead of destroying the context.
+    const closeSettingsModal = () => {
+        settingsModal.classList.add('hidden');
+    };
+
+    const saveApiKeys = () => {
+        localStorage.setItem('assemblyai_api_key', assemblyaiKeyInput.value.trim());
+        localStorage.setItem('gemini_api_key', geminiKeyInput.value.trim());
+        localStorage.setItem('murf_api_key', murfKeyInput.value.trim());
+        localStorage.setItem('tavily_api_key', tavilyKeyInput.value.trim());
+        alert('API keys have been saved successfully!');
+        closeSettingsModal();
+    };
+
+    settingsBtn.addEventListener('click', openSettingsModal);
+    closeModalBtn.addEventListener('click', closeSettingsModal);
+    saveKeysBtn.addEventListener('click', saveApiKeys);
+    settingsModal.addEventListener('click', (event) => {
+        if (event.target === settingsModal) {
+            closeSettingsModal();
+        }
+    });
+
     const stopCurrentPlayback = () => {
         console.log("🤫 Nirvana: Oops, you interrupted me! Stopping my current response.");
         if (currentAudioSource) {
@@ -53,7 +92,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 sourceNode.connect(audioContext.destination);
                 sourceNode.start();
 
-                // MODIFIED: Store reference to the new source and clear it onended
                 currentAudioSource = sourceNode;
                 sourceNode.onended = () => {
                     currentAudioSource = null;
@@ -70,7 +108,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const startRecording = async () => {
         console.log("🎤 Nirvana: Let's talk! Initializing the audio session.");
         
-        // MODIFIED: Initialize AudioContext only once.
+        if (!localStorage.getItem('assemblyai_api_key') || !localStorage.getItem('gemini_api_key') || !localStorage.getItem('murf_api_key')) {
+            alert('Please set your AssemblyAI, Gemini, and Murf.ai API keys in the settings before starting a session.');
+            openSettingsModal();
+            return;
+        }
+        
         if (!audioContext) {
             try {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -99,6 +142,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
             socket.onopen = async () => {
                 console.log("🔌 Nirvana: WebSocket connection established. I'm all ears!");
+                
+                // --- Send API Keys on connection ---
+                const apiKeys = {
+                    type: "config",
+                    assemblyai_api_key: localStorage.getItem('assemblyai_api_key'),
+                    gemini_api_key: localStorage.getItem('gemini_api_key'),
+                    murf_api_key: localStorage.getItem('murf_api_key'),
+                    tavily_api_key: localStorage.getItem('tavily_api_key')
+                };
+                socket.send(JSON.stringify(apiKeys));
+                console.log("🔑 Sent API key configuration to the server.");
+
                 heartbeatInterval = setInterval(() => {
                     if (socket?.readyState === WebSocket.OPEN) {
                         socket.send(JSON.stringify({ type: "ping" }));
@@ -149,11 +204,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
 
                     switch (data.type) {
-                        case "pong":
-                            break;
-                        case "status":
-                            statusDisplay.textContent = data.message;
-                            break;
+                        case "pong": break;
+                        case "status": statusDisplay.textContent = data.message; break;
                         case "transcription":
                             if (data.end_of_turn && data.text) {
                                 addToChatLog(data.text, 'user');
@@ -173,11 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         case "audio_start":
                             statusDisplay.textContent = "Receiving audio response...";
                             console.log("🎶 Nirvana: Okay, I've started receiving the audio stream. Getting ready to speak!");
-                            
-                            if (audioContext.state === 'suspended') {
-                                audioContext.resume();
-                            }
-                            
+                            if (audioContext.state === 'suspended') audioContext.resume();
                             audioQueue = [];
                             audioChunkIndex = 0;
                             break;
@@ -237,7 +285,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    // MODIFIED: This function now only disconnects nodes, it does not destroy the AudioContext.
     const stopRecording = async (sendEOF = true) => {
         if (!isRecording) return;
         console.log("🛑 Nirvana: Recording stopped. Closing the connection now. Talk to you later!");
@@ -257,9 +304,6 @@ document.addEventListener("DOMContentLoaded", () => {
             recordBtn.mediaStream = null;
         }
         
-        // This line is intentionally removed to preserve the AudioContext
-        // if (audioContext) { audioContext.close(); audioContext = null; }
-
         if (socket?.readyState === WebSocket.OPEN) {
             socket.close();
         }
@@ -270,13 +314,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const updateUIForRecording = (isRec) => {
         if (isRec) {
             recordBtn.classList.add("recording", "bg-red-600", "hover:bg-red-700");
-            recordBtn.classList.remove("bg-violet-600", "hover:bg-violet-700");
+            recordBtn.classList.remove("bg-cyan-600", "hover:bg-cyan-700");
             statusDisplay.textContent = "Connecting...";
             chatDisplay.classList.remove("hidden");
             clearBtnContainer.classList.add("hidden");
         } else {
             recordBtn.classList.remove("recording", "bg-red-600", "hover:bg-red-700");
-            recordBtn.classList.add("bg-violet-600", "hover:bg-violet-700");
+            recordBtn.classList.add("bg-cyan-600", "hover:bg-cyan-700");
             statusDisplay.textContent = "Ready";
             statusDisplay.classList.remove("text-red-400");
         }
