@@ -223,6 +223,9 @@ async def websocket_audio_streaming(websocket: WebSocket):
     client.on(StreamingEvents.Error, on_error)
 
     try:
+        # ADD THIS LINE to verify the key is correct just before connecting
+        logging.info(f"Attempting to connect to AssemblyAI with key ending in: ...{assemblyai_api_key[-4:]}")
+
         client.connect(StreamingParameters(sample_rate=16000, format_turns=True))
         await send_client_message(websocket, {"type": "status", "message": "Connected to transcription service."})
 
