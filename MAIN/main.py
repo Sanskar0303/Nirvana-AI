@@ -167,11 +167,6 @@ async def get_llm_response_stream(transcript: str, client_websocket: WebSocket, 
     except Exception as e:
         logging.error(f"Error in LLM/TTS streaming function: {e}", exc_info=True)
 
-
-@app.get("/")
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
 async def send_client_message(ws: WebSocket, message: dict):
     try:
         await ws.send_text(json.dumps(message))
@@ -260,4 +255,5 @@ async def websocket_audio_streaming(websocket: WebSocket):
         client.disconnect()
         if websocket.client_state.name != 'DISCONNECTED':
             await websocket.close()
+
 
