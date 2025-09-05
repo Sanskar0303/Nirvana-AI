@@ -51,7 +51,6 @@ async def get_llm_response_stream(transcript: str, client_websocket: WebSocket, 
 
     gemini_api_key = user_keys.get("gemini_api_key")
     murf_api_key = user_keys.get("murf_api_key")
-    # tavily_api_key = user_keys.get("tavily_api_key") # Ready for future use
 
     if not gemini_api_key:
         logging.error("Cannot get LLM response because Gemini API key is missing.")
@@ -63,20 +62,22 @@ async def get_llm_response_stream(transcript: str, client_websocket: WebSocket, 
         gemini_model = genai.GenerativeModel('gemini-1.5-flash')
     except Exception as e:
         logging.error(f"Failed to initialize Gemini model: {e}")
-        await client_websocket.send_text(json.dumps({"type": "error", "message": f"Invalid Gemini API Key."}))
+        await client_websocket.send_text(json.dumps({"type": "error", "message": "Invalid Gemini API Key."}))
         return
 
-    logging.info(f"Sending to Gemini with history: '{transcript}'")
-    
+    # 🔑 Add user transcript to chat history
+    chat_history.append({"role": "user", "parts": [transcript]})
+
+    logging.info(f"Sending transcript to Gemini: '{transcript}'")
+
     murf_uri = f"wss://api.murf.ai/v1/speech/stream-input?api-key={murf_api_key}&sample_rate=44100&channel_type=MONO&format=MP3"
-    
+
     try:
         async with websockets.connect(murf_uri) as websocket:
             voice_id = "en-US-natalie"
-            logging.info(f"Successfully connected to Murf AI, using voice: {voice_id}")
-            
             context_id = f"voice-agent-context-{datetime.now().isoformat()}"
-            
+
+            # Configure Murf voice
             config_msg = {
                 "voice_config": {"voiceId": voice_id, "style": "Conversational"},
                 "context_id": context_id
@@ -96,47 +97,41 @@ async def get_llm_response_stream(transcript: str, client_websocket: WebSocket, 
                                 first_audio_chunk_received = True
                                 logging.info("✅ Streaming first audio chunk to client.")
 
-                            base_64_chunk = response['audio']
                             await client_websocket.send_text(
-                                json.dumps({"type": "audio", "data": base_64_chunk})
+                                json.dumps({"type": "audio", "data": response['audio']})
                             )
 
                         if response.get("final"):
-                            logging.info("Murf confirms final audio chunk received. Sending audio_end to client.")
                             await client_websocket.send_text(json.dumps({"type": "audio_end"}))
                             break
-                    except websockets.ConnectionClosed as e:
-                        logging.warning(f"Murf connection closed unexpectedly: {e.code} {e.reason}")
-                        if "authentication failed" in str(e.reason).lower():
-                             await client_websocket.send_text(json.dumps({"type": "error", "message": "Murf.ai authentication failed. Check API key."}))
-                        await client_websocket.send_text(json.dumps({"type": "audio_end"}))
-                        break
                     except Exception as e:
-                        logging.error(f"Error in Murf receiver task: {e}")
+                        logging.error(f"Murf audio forward error: {e}")
                         break
-            
+
             receiver_task = asyncio.create_task(receive_and_forward_audio())
 
             try:
-                prompt = f"""You are Nirvana, an AI voice assistant... [Your prompt remains the same] ...IMPORTANT: Do not use any markdown formatting. Provide only plain text."""
-                
-                chat_history.append({"role": "user", "parts": [prompt]})
+                # 🔑 Start chat with full history (system + previous exchanges)
                 chat = gemini_model.start_chat(history=chat_history[:-1])
-                def generate_sync(): return chat.send_message(prompt, stream=True)
+
+                def generate_sync(): 
+                    return chat.send_message(transcript, stream=True)
+
                 loop = asyncio.get_running_loop()
                 gemini_response_stream = await loop.run_in_executor(None, generate_sync)
 
                 sentence_buffer, full_response_text = "", ""
-                print("\n--- DIVA (GEMINI) STREAMING RESPONSE ---")
+                print("\n--- GEMINI STREAMING RESPONSE ---")
+
                 for chunk in gemini_response_stream:
                     if chunk.text:
                         print(chunk.text, end="", flush=True)
                         full_response_text += chunk.text
                         await client_websocket.send_text(json.dumps({"type": "llm_chunk", "data": chunk.text}))
-                        
+
+                        # Break sentences for Murf TTS
                         sentence_buffer += chunk.text
                         sentences = re.split(r'(?<=[.?!])\s+', sentence_buffer)
-                        
                         if len(sentences) > 1:
                             for sentence in sentences[:-1]:
                                 if sentence.strip():
@@ -145,25 +140,19 @@ async def get_llm_response_stream(transcript: str, client_websocket: WebSocket, 
 
                 if sentence_buffer.strip():
                     await websocket.send(json.dumps({"text": sentence_buffer.strip(), "end": True, "context_id": context_id}))
-                
+
+                # 🔑 Save bot response into chat history
                 chat_history.append({"role": "model", "parts": [full_response_text]})
 
-                print("\n--- END OF DIVA (GEMINI) STREAM ---\n")
-                logging.info("Finished streaming to Murf. Waiting for final audio chunks...")
+                print("\n--- END GEMINI STREAM ---\n")
                 await asyncio.wait_for(receiver_task, timeout=60.0)
-                logging.info("Receiver task finished gracefully.")
-            
+
             finally:
                 if not receiver_task.done():
                     receiver_task.cancel()
-                    logging.info("Receiver task cancelled on exit.")
 
     except asyncio.CancelledError:
-        logging.info("LLM/TTS task was cancelled by user interruption.")
         await client_websocket.send_text(json.dumps({"type": "audio_interrupt"}))
-    except websockets.exceptions.InvalidURI:
-        logging.error("Invalid Murf API URI, likely due to a missing API key.")
-        await client_websocket.send_text(json.dumps({"type": "error", "message": "Murf.ai API key is missing or invalid."}))
     except Exception as e:
         logging.error(f"Error in LLM/TTS streaming function: {e}", exc_info=True)
 
@@ -255,5 +244,6 @@ async def websocket_audio_streaming(websocket: WebSocket):
         client.disconnect()
         if websocket.client_state.name != 'DISCONNECTED':
             await websocket.close()
+
 
 
