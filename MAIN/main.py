@@ -1,9 +1,10 @@
 import os
 from dotenv import load_dotenv
 import logging
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import FileResponse
 from pathlib import Path as PathLib
 import json
 import asyncio
@@ -27,13 +28,22 @@ from assemblyai.streaming.v3 import (
 )
 import google.generativeai as genai
 
+# Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# FastAPI app
 app = FastAPI()
 
+# Base directory
 BASE_DIR = PathLib(__file__).resolve().parent
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+# Serve static files (JS, CSS, images, etc.)
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+# Serve index.html directly from static/
+@app.get("/")
+async def home():
+    return FileResponse(BASE_DIR / "static" / "index.html")
 
 async def get_llm_response_stream(transcript: str, client_websocket: WebSocket, chat_history: List[dict], user_keys: dict):
     if not transcript or not transcript.strip():
@@ -250,3 +260,4 @@ async def websocket_audio_streaming(websocket: WebSocket):
         client.disconnect()
         if websocket.client_state.name != 'DISCONNECTED':
             await websocket.close()
+
